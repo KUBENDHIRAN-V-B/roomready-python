@@ -1,4 +1,3 @@
-"""A checkout makes the room dirty; a room without a guest and a malformed body are refused differently."""
 from roomready.models import Stay
 from tests.conftest import T0, P, iso, room
 

@@ -79,3 +79,19 @@ def test_state_is_derived_from_rows_and_there_is_no_state_column(client):
     checkout(client, "214")
     assert room(client, "214")["state"] == "dirty"
     assert room(client, "214")["state"] == "dirty", "a second read derives the same state from the same rows"
+
+
+def test_housekeeper_list_shows_room_assignment(client):
+    from tests.conftest import assigned
+    assigned(client, "214", "HK03")
+    staff = client.get(f"{P}/housekeepers").json()["housekeepers"]
+    assert {h["id"]: h["open_assignment"] for h in staff}["HK03"] == "214"
+    assert all(h["open_assignment"] is None for h in staff if h["id"] != "HK03")
+
+
+def test_board_shows_assignee_and_elapsed_assigned_minutes(client, clock):
+    from tests.conftest import assigned
+    assigned(client, "214", "HK03")
+    clock.advance(minutes=22)
+    body = client.get(f"{P}/rooms?state=assigned").json()
+    assert body["rooms"] == [{"no": "214", "floor": 2, "type": "Deluxe", "state": "assigned", "assigned_to": "Sunita", "since_minutes": 22}]

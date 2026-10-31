@@ -23,8 +23,21 @@ class NoSuchRoom(DomainError):
     status, type, title = 404, "/errors/no-such-room", "No such room in this property"
 
 
+class NoSuchHousekeeper(DomainError):
+    status, type, title = 404, "/errors/no-such-housekeeper", "No such housekeeper"
+
+
+class NoSuchAssignment(DomainError):
+    status, type, title = 404, "/errors/no-such-assignment", "No such assignment"
+
+
 class RoomNotOccupied(DomainError):
     status, type, title = 400, "/errors/room-not-occupied", "The room has no guest to check out"
+
+
+class StepSkipped(DomainError):
+    """The room is not in the state this action needs; `state` says where it is, `needs` what must happen first."""
+    status, type, title = 409, "/errors/step-skipped", "A step in the sequence was skipped"
 
 
 # (status, type, title) of the errors no domain class raises

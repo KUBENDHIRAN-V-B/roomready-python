@@ -1,5 +1,6 @@
-"""Rooms, housekeepers and stays. A room's state is derived from these rows,
-never stored."""
+"""Rooms, stays and assignments. A room's state is derived on read from its rows,
+and there is deliberately no `state` column on rooms. Durations are stamped once and never
+recomputed."""
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
@@ -54,3 +55,18 @@ class Stay(Base):
     arrival_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+
+
+class Assignment(Base):
+    """One row per clean; assigned / cleaning / toinspect from the stamps."""
+    __tablename__ = "assignments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"))
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"))
+    stay_id: Mapped[int] = mapped_column(ForeignKey("stays.id"))
+    housekeeper_id: Mapped[int] = mapped_column(ForeignKey("housekeepers.id"))
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    clean_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)  # stamped at finish, never recomputed

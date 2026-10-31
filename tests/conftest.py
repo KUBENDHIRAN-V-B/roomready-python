@@ -66,3 +66,25 @@ def checkout(client, room="214", at=None, arrival_at=None) -> dict:
     r = client.post("/checkouts", json=body)
     assert r.status_code == 201, r.text
     return r.json()
+
+
+def assign(client, room="214", housekeeper="HK03"):
+    return client.post("/assignments", json={"room": room, "housekeeper": housekeeper})
+
+
+def assigned(client, room="214", housekeeper="HK03", arrival_at=None) -> dict:
+    """checkout + assign, returning the assignment body"""
+    checkout(client, room, arrival_at=arrival_at)
+    r = assign(client, room, housekeeper)
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def cleaned(client, clock, room="214", housekeeper="HK03", minutes=36, arrival_at=None) -> dict:
+    """checkout + assign + start + finish (the clock moved `minutes`), returning the finish body plus the assignment id"""
+    a = assigned(client, room, housekeeper, arrival_at=arrival_at)
+    assert client.post(f"/assignments/{a['assignment_id']}/start").status_code == 200
+    clock.advance(minutes=minutes)
+    r = client.post(f"/assignments/{a['assignment_id']}/finish")
+    assert r.status_code == 200, r.text
+    return {**r.json(), "room": room, "housekeeper": housekeeper}

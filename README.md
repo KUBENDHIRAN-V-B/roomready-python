@@ -8,7 +8,7 @@ Hotel housekeeping: dirty, cleaned, inspected, ready — raced against the day's
 
 - [x] Ticket 1 · The hotel, as something you can look at
 - [x] Ticket 2 · A checkout makes a room dirty
-- [ ] Ticket 3 · Assign it, and start the clock
+- [x] Ticket 3 · Assign it, and start the clock
 - [ ] Ticket 4 · Three ways to say no
 - [ ] Ticket 5 · The room reaches ready
 - [ ] Ticket 6 · A clipboard nobody can re-tick

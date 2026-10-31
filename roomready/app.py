@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from .clock import get_clock
 from .db import init_db, make_engine, make_sessionmaker
 from .handlers import install_handlers
-from .routers import checkouts, rooms
+from .routers import assignments, checkouts, rooms
 from .services.seed import seed
 from .settings import Settings
 
@@ -31,7 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="RoomReady", version="0.1.0", lifespan=lifespan)
     app.state.sessionmaker = make_sessionmaker(engine)
     install_handlers(app)
-    for r in (rooms.router, checkouts.router):
+    for r in (rooms.router, checkouts.router, assignments.router):
         app.include_router(r)
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 

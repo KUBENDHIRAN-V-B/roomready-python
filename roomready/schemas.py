@@ -56,3 +56,27 @@ class CheckoutOut(BaseModel):
     room: str
     checked_out_at: UtcZ
     state: RoomState
+
+
+class AssignIn(BaseModel):
+    room: str = Field(min_length=3, max_length=8)
+    housekeeper: str = Field(min_length=3, max_length=8)
+
+
+class AssignOut(BaseModel):
+    assignment_id: str
+    room: str
+    assigned_to: str
+    assigned_at: UtcZ
+
+
+class StartOut(BaseModel):
+    assignment_id: str
+    started_at: UtcZ
+
+
+class FinishOut(BaseModel):
+    """This answer's shape: the room's state is not part of it — read the room (it is toinspect)."""
+    assignment_id: str
+    finished_at: UtcZ
+    clean_minutes: int
