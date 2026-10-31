@@ -1,0 +1,1065 @@
+{
+ "project": "Hotel housekeeping: dirty, cleaned, inspected, ready — raced against the day's arrivals.",
+ "level": "RoomReady",
+ "steps": [
+  {
+   "id": "B-01",
+   "title": "The hotel, as something you can look at",
+   "scene": "Sixty rooms across four floors, three room types, nine housekeepers. The only place that knows the state of any of them is Grace's clipboard, and it is upstairs.",
+   "build": "Load floors, rooms, types and housekeepers once at start-up from a settings object, and serve a board that can be filtered by floor and by state — where a room's state is derived from where it is in the sequence, not stored as a free-text label anyone can type into.",
+   "follows": "Nothing can be assigned, cleaned or inspected until the hotel exists.",
+   "story": {
+    "as": "supervisor",
+    "want": "see every room with its floor, type and current state",
+    "so": "I can run the morning without carrying the clipboard upstairs"
+   },
+   "summary": "The app starts with 60 rooms on four floors, three types and nine housekeepers loaded once, and answers a board filterable by floor and state.",
+   "endpoints": [
+    {
+     "m": "GET",
+     "p": "/properties/{property}/rooms",
+     "q": "floor=1..4 (optional) · state=occupied|dirty|assigned|cleaning|toinspect|ready|out_of_order (optional) · type=Standard|Deluxe|Suite (optional)",
+     "req": null,
+     "res": {
+      "property": "harbour-view",
+      "ready": 12,
+      "dirty": 9,
+      "rooms": [
+       {
+        "no": "214",
+        "floor": 2,
+        "type": "Deluxe",
+        "state": "cleaning",
+        "assigned_to": "Sunita",
+        "since_minutes": 22
+       }
+      ]
+     },
+     "codes": [
+      [
+       "200",
+       "",
+       "always, possibly empty"
+      ],
+      [
+       "400",
+       "",
+       "unknown floor, state or type — /errors/validation"
+      ],
+      [
+       "404",
+       "",
+       "unknown property — /errors/no-such-property"
+      ]
+     ]
+    },
+    {
+     "m": "GET",
+     "p": "/properties/{property}/rooms/{no}",
+     "q": null,
+     "req": null,
+     "res": {
+      "no": "214",
+      "floor": 2,
+      "type": "Deluxe",
+      "state": "cleaning",
+      "assigned_to": "Sunita",
+      "since_minutes": 22
+     },
+     "codes": [
+      [
+       "200",
+       "",
+       "the room exists"
+      ],
+      [
+       "404",
+       "/errors/no-such-room",
+       "no such room in this property"
+      ]
+     ]
+    },
+    {
+     "m": "GET",
+     "p": "/properties/{property}/housekeepers",
+     "q": null,
+     "req": null,
+     "res": {
+      "housekeepers": [
+       {
+        "id": "HK03",
+        "name": "Sunita",
+        "open_assignment": "214"
+       }
+      ]
+     },
+     "codes": [
+      [
+       "200",
+       "",
+       "always"
+      ],
+      [
+       "404",
+       "",
+       "unknown property — /errors/no-such-property"
+      ]
+     ]
+    }
+   ],
+   "data": [
+    "properties(id, slug, name) — one row 'harbour-view'",
+    "rooms(id, property_id, no, floor, type Standard|Deluxe|Suite, out_of_order bool) — 60 rooms: 101–415, ten Standard, three Deluxe, two Suite per floor",
+    "housekeepers(id, property_id, name) — nine rows",
+    "seed files seed/rooms.csv and seed/housekeepers.csv read once at start-up"
+   ],
+   "rules": [
+    "State is derived, never stored as text: `occupied` if the current stay has no checkout; `dirty` after checkout with no assignment; `assigned` / `cleaning` / `toinspect` from the open assignment's started/finished stamps; `ready` after a passed inspection (or a finished clean when inspection is not required); `out_of_order` overrides all.",
+    "Seeding is idempotent; a second start does not duplicate rooms.",
+    "Settings (database path, host, port, inspection policy) from one settings object; nothing hard-coded.",
+    "Filter values outside the enum are 400.",
+    "Filters are typed query parameters bound to enums; every response goes through a declared response model (no bare dicts)."
+   ],
+   "ac_user": [
+    [
+     "the app just started",
+     "Grace opens the board",
+     "60 rooms on four floors, all occupied, nine housekeepers listed"
+    ],
+    [
+     "she filters to floor 2 and dirty",
+     "the board",
+     "shows only those rooms and the count"
+    ],
+    [
+     "the app restarts",
+     "the board",
+     "60 rooms, not 120"
+    ]
+   ],
+   "ac_api": [
+    [
+     "a fresh database",
+     "start twice",
+     "rooms 60, housekeepers 9 after both"
+    ],
+    [
+     "GET /rooms",
+     "any",
+     "60 items each with no, floor, type, state"
+    ],
+    [
+     "GET ?state=painting",
+     "any",
+     "400 /errors/validation"
+    ],
+    [
+     "GET /rooms/999",
+     "any",
+     "404 /errors/no-such-room"
+    ],
+    [
+     "a room",
+     "read its state twice after a transition",
+     "derived from rows, no `state` column exists on rooms"
+    ]
+   ],
+   "done": [
+    "Three endpoints, filters, refusals.",
+    "Idempotent seeding tested.",
+    "No stored state column.",
+    "The board renders from these endpoints only."
+   ],
+   "try": {
+    "screen": "board",
+    "do": "Use the floor, state and type selects. Then count: forty Standard, twelve Deluxe, eight Suite, all occupied — and read the Housekeepers list beside the Check out form: nine names, no room yet.",
+    "see": "Sixty cells by floor, coloured by `state`, from GET /properties/harbour-view/rooms; the count strip is the `ready` and `dirty` fields; the housekeepers come from GET …/housekeepers. There is no `state` column anywhere — the state is read off the stay, the open assignment and the readiness stamp. Open `/properties/harbour-view/rooms?state=painting` in the address bar: 400 validation, not an empty list."
+   }
+  },
+  {
+   "id": "B-02",
+   "title": "A checkout makes a room dirty",
+   "scene": "A guest leaves at 10:40. Nothing happens until somebody tells Grace, and Grace is on the third floor.",
+   "build": "A checkout endpoint taking the room and the time through a request model with real constraints, moving the room to dirty — and separating a malformed request (422) from a room that is not occupied (400).",
+   "follows": "The board is readable; this is the first thing that changes it, so validation lives here.",
+   "story": {
+    "as": "front desk clerk",
+    "want": "mark a room dirty the moment the guest checks out",
+    "so": "housekeeping knows about it before somebody walks past and notices"
+   },
+   "summary": "A checkout moves a room to dirty and records the time; a room without a guest is refused differently from a malformed body.",
+   "endpoints": [
+    {
+     "m": "POST",
+     "p": "/checkouts",
+     "q": null,
+     "req": {
+      "room": "214",
+      "at": "2026-09-28T10:40:00Z",
+      "arrival_at": "2026-09-28T13:00:00Z"
+     },
+     "res": {
+      "stay_id": "ST0412",
+      "room": "214",
+      "checked_out_at": "2026-09-28T10:40:00Z",
+      "state": "dirty"
+     },
+     "codes": [
+      [
+       "201",
+       "",
+       "the room is dirty; `Location: /properties/{property}/rooms/214`"
+      ],
+      [
+       "422",
+       "/errors/validation",
+       "the body fails validation; `errors[]` names each field"
+      ],
+      [
+       "400",
+       "/errors/room-not-occupied",
+       "the room has no guest to check out"
+      ],
+      [
+       "404",
+       "/errors/no-such-room",
+       "no such room in this property"
+      ]
+     ]
+    }
+   ],
+   "data": [
+    "stays(id, property_id, room_id, guest_ref, checked_in_at, checked_out_at nullable, arrival_at nullable) — the current stay is the one with checked_out_at null"
+   ],
+   "rules": [
+    "`room` must exist; `at` must be a timestamp not in the future and not before checked_in_at — violations are the validation status.",
+    "A room whose current stay is already checked out (or that has no stay) is 400 /errors/room-not-occupied — a valid body, an impossible request.",
+    "Checkout sets checked_out_at on the stay; the room's derived state becomes dirty.",
+    "`arrival_at` is optional: when the next guest for this room is due, if the desk knows it; it is stored on the stay. An arrival before `at` is the validation status.",
+    "The request model uses `Field` constraints; a body that fails them is 422, a body that passes but asks for something impossible is 400 — two different types, tested separately."
+   ],
+   "ac_user": [
+    [
+     "a guest leaves 214 at 10:40",
+     "Pradeep records it",
+     "214 shows dirty on the board within a second, no clipboard"
+    ],
+    [
+     "he records 214 again",
+     "submit",
+     "told the room has no guest"
+    ],
+    [
+     "he leaves the time blank",
+     "submit",
+     "told which field is wrong"
+    ]
+   ],
+   "ac_api": [
+    [
+     "room 214 occupied",
+     "POST /checkouts",
+     "201, stay.checked_out_at set, GET room shows dirty"
+    ],
+    [
+     "room 214 already dirty",
+     "POST /checkouts",
+     "400 room-not-occupied, nothing written"
+    ],
+    [
+     "`at` in the future",
+     "POST",
+     "422"
+    ]
+   ],
+   "done": [
+    "Endpoint with all responses; stay updated; derived state flips; both refusals tested."
+   ],
+   "try": {
+    "screen": "board",
+    "do": "Check out 214 with the form (the time is filled in). Then check 214 out again. Then clear the time and submit.",
+    "see": "214 turns dirty on the board and the answer carries the stay id, `checked_out_at` and a Location header. The second checkout is 400 room-not-occupied — a valid body, an impossible request. A blank time is 422 validation with `errors[]` naming `at`; so is a time in the future or before check-in."
+   }
+  },
+  {
+   "id": "B-03",
+   "title": "Assign it, and start the clock",
+   "scene": "Sunita is given room 214. Nobody has ever recorded how long a room of that type actually takes her, which is why the morning is always a guess.",
+   "build": "Assign a dirty room to a housekeeper and start timing the clean against an injected clock — so the duration is stored on the assignment and a test can move time rather than wait for it.",
+   "follows": "Rooms can be dirty; this is the first thing that moves them forward, and the injected clock is what every time rule is tested through.",
+   "story": {
+    "as": "supervisor",
+    "want": "assign a dirty room to a housekeeper and have the clean timed",
+    "so": "I learn how long each room type actually takes"
+   },
+   "summary": "A dirty room is assigned to a housekeeper and the clean is timed against an injected clock: start, finish, and the stored duration.",
+   "endpoints": [
+    {
+     "m": "POST",
+     "p": "/assignments",
+     "q": null,
+     "req": {
+      "room": "214",
+      "housekeeper": "HK03"
+     },
+     "res": {
+      "assignment_id": "AS118",
+      "room": "214",
+      "assigned_to": "Sunita",
+      "assigned_at": "2026-09-28T10:52:00Z"
+     },
+     "codes": [
+      [
+       "201",
+       "",
+       "assigned; the room is `assigned`"
+      ],
+      [
+       "409",
+       "/errors/step-skipped",
+       "the room is not in the state this action needs; `state` says where it is, `needs` says what must happen first"
+      ],
+      [
+       "404",
+       "/errors/no-such-room",
+       "no such room in this property"
+      ],
+      [
+       "404",
+       "/errors/no-such-housekeeper",
+       ""
+      ]
+     ]
+    },
+    {
+     "m": "POST",
+     "p": "/assignments/{assignment_id}/start",
+     "q": null,
+     "req": null,
+     "res": {
+      "assignment_id": "AS118",
+      "started_at": "2026-09-28T10:55:00Z"
+     },
+     "codes": [
+      [
+       "200",
+       "",
+       "the room is `cleaning`"
+      ],
+      [
+       "409",
+       "/errors/step-skipped",
+       "the room is not in the state this action needs; `state` says where it is, `needs` says what must happen first"
+      ],
+      [
+       "404",
+       "/errors/no-such-assignment",
+       ""
+      ]
+     ]
+    },
+    {
+     "m": "POST",
+     "p": "/assignments/{assignment_id}/finish",
+     "q": null,
+     "req": null,
+     "res": {
+      "assignment_id": "AS118",
+      "finished_at": "2026-09-28T11:31:00Z",
+      "clean_minutes": 36
+     },
+     "codes": [
+      [
+       "200",
+       "",
+       "the room is `toinspect`"
+      ],
+      [
+       "409",
+       "/errors/step-skipped",
+       "the room is not in the state this action needs; `state` says where it is, `needs` says what must happen first"
+      ],
+      [
+       "404",
+       "/errors/no-such-assignment",
+       ""
+      ]
+     ]
+    }
+   ],
+   "data": [
+    "assignments(id, property_id, room_id, stay_id, housekeeper_id, assigned_at, started_at nullable, finished_at nullable, clean_minutes nullable)"
+   ],
+   "rules": [
+    "Only a `dirty` room can be assigned; only an assigned room can start; only a cleaning room can finish — anything else is step-skipped with `state` and `needs`.",
+    "`clean_minutes` = finished_at − started_at, whole minutes, computed from the injected clock at finish and stored, never recomputed on read.",
+    "The clock is a dependency (`Depends(get_clock)`) overridable in tests.",
+    "`needs` names the step that must come first: occupied → `checkout`, dirty → `assign`, assigned → `start`, cleaning → `finish`, toinspect → `inspect`, ready → `checkin` (the room waits for its next guest).",
+    "Both the database session and the clock are `Depends` dependencies, so a test overrides either without touching the route."
+   ],
+   "ac_user": [
+    [
+     "214 is dirty",
+     "Grace assigns it to Sunita",
+     "the board shows 214 assigned to Sunita"
+    ],
+    [
+     "Sunita starts and finishes",
+     "she taps each",
+     "the room shows 36 minutes for a Deluxe, and the number stays"
+    ]
+   ],
+   "ac_api": [
+    [
+     "a dirty room",
+     "POST /assignments",
+     "201; room state assigned"
+    ],
+    [
+     "the clock at T then T+36m",
+     "start then finish",
+     "clean_minutes 36"
+    ],
+    [
+     "a later read after the clock moves",
+     "GET room",
+     "still 36"
+    ],
+    [
+     "an assigned room",
+     "finish without start",
+     "409 step-skipped with needs 'start'"
+    ]
+   ],
+   "done": [
+    "Three endpoints, step checks, stored duration under a fixed clock — tested."
+   ],
+   "try": {
+    "screen": "work",
+    "do": "Assign 214 to Sunita (after checking it out on the floor). The Assign answer fills in the Start and finish form: press Start, then Finish. (The tests move the clock 36 minutes between the two.)",
+    "see": "An assignment id, then `started_at`, then `finished_at` with `clean_minutes` — whole minutes from the injected clock, stored on the assignment and never recomputed: the room's card still says 36 an hour later. The finish answer carries no state; the form reads the room and shows it is toinspect. Finish before Start is 409 step-skipped with `needs: start`. Both the session and the clock are `Depends`, so a test overrides either without touching a route."
+   }
+  },
+  {
+   "id": "B-04",
+   "title": "Three ways to say no",
+   "scene": "A new supervisor marks a room ready without an inspection, then assigns a room Sunita is already cleaning, then ticks a room she cleaned herself.",
+   "build": "Three refusals with three codes: a step skipped in the sequence, a room already assigned, and an inspection by the person who did the work — raised from a service function, never from a route.",
+   "follows": "The happy path is built. Separation of duties is the whole point of this project, and it starts here as a refusal rather than a convention.",
+   "story": {
+    "as": "supervisor",
+    "want": "be refused when a step is skipped, a room is assigned twice, or somebody inspects their own work",
+    "so": "separation of duties is enforced rather than remembered"
+   },
+   "summary": "Three refusals — step skipped, already assigned, self-inspection — each with its own type and status, raised from the service and mapped once.",
+   "endpoints": [
+    {
+     "m": "POST",
+     "p": "/inspections",
+     "q": null,
+     "req": {
+      "room": "214",
+      "inspector": "HK01",
+      "result": "fail"
+     },
+     "res": {
+      "inspection_id": "IN077",
+      "room": "214",
+      "cleaned_by": "Sunita",
+      "inspected_by": "Grace",
+      "result": "fail",
+      "state": "dirty"
+     },
+     "codes": [
+      [
+       "201",
+       "",
+       "inspected; on a fail the room is dirty again and its assignment closed (a pass makes it ready)"
+      ],
+      [
+       "409",
+       "/errors/step-skipped",
+       "the room is not in the state this action needs; `state` says where it is, `needs` says what must happen first"
+      ],
+      [
+       "409",
+       "/errors/self-inspection",
+       "the inspector cleaned this room; somebody else must inspect it"
+      ],
+      [
+       "404",
+       "/errors/no-such-room",
+       "no such room in this property"
+      ],
+      [
+       "404",
+       "/errors/no-such-housekeeper",
+       "the inspector is not a housekeeper of this property"
+      ]
+     ]
+    },
+    {
+     "m": "POST",
+     "p": "/assignments",
+     "q": null,
+     "req": null,
+     "res": null,
+     "codes": [
+      [
+       "409",
+       "/errors/already-assigned",
+       "the room already has an open assignment; `assigned_to` names the housekeeper"
+      ],
+      [
+       "409",
+       "/errors/step-skipped",
+       "the room is not in the state this action needs; `state` says where it is, `needs` says what must happen first"
+      ]
+     ]
+    }
+   ],
+   "data": [
+    "inspections(id, property_id, room_id, assignment_id, inspector_id, result pass|fail, inspected_at)"
+   ],
+   "rules": [
+    "Domain refusals are exceptions raised in the service (StepSkipped, AlreadyAssigned, SelfInspection) — never HTTP built in a route.",
+    "One handler maps each to status + type; that table is the single source of truth.",
+    "Self-inspection: the inspector id equals the assignment's housekeeper id — refused regardless of role.",
+    "A failed inspection returns the room to dirty and closes the assignment; the next assignment is a new row.",
+    "The exception → status mapping lives in one `exception_handler` registration; routes never build error responses."
+   ],
+   "ac_user": [
+    [
+     "a room still being cleaned",
+     "a new supervisor marks it ready",
+     "refused: a step was skipped"
+    ],
+    [
+     "Sunita is on 214",
+     "the supervisor assigns 214 again",
+     "refused: already assigned"
+    ],
+    [
+     "Sunita cleaned 214",
+     "she ticks it herself",
+     "refused: someone else must inspect"
+    ]
+   ],
+   "ac_api": [
+    [
+     "room cleaning",
+     "POST /inspections",
+     "409 step-skipped with needs 'finish'"
+    ],
+    [
+     "an open assignment",
+     "POST /assignments same room",
+     "409 already-assigned with assigned_to"
+    ],
+    [
+     "inspector == cleaner",
+     "POST /inspections",
+     "409 self-inspection"
+    ],
+    [
+     "any domain exception",
+     "handler",
+     "type, title, status, detail and named fields; no trace"
+    ]
+   ],
+   "done": [
+    "Three refusals from the service, one handler, a test per refusal, no framework exceptions for domain rules in routes."
+   ],
+   "try": {
+    "screen": "work",
+    "do": "Assign 214 while Sunita is already on it. Inspect a room that is still being cleaned. Finish 214 and let Sunita (HK03) inspect her own room with the Inspect form.",
+    "see": "409 already-assigned naming Sunita; 409 step-skipped with `state` and `needs`; 409 self-inspection — each in the wire panel, and each listed in the 'When the board says no' table beside the Inspect form. Each is its own type, raised in `services/`, mapped by one handler — no route builds an error. A failed inspection sends the room back to dirty and closes the assignment; the next assignment is a new row."
+   }
+  },
+  {
+   "id": "B-05",
+   "title": "The room reaches ready",
+   "scene": "Room 214 is inspected at 12:20 and its guest lands at one. Forty minutes of margin is the number Mr Menon actually cares about.",
+   "build": "A passed inspection moves the room to ready and stamps how long before the arrival it got there — state change and stamp in one transaction, so the board can never show ready with an open inspection.",
+   "follows": "The sequence is started; this is the only ticket that completes it. Until now rooms go dirty and stay that way.",
+   "story": {
+    "as": "general manager",
+    "want": "have a passed inspection mark the room ready and record how long before arrival",
+    "so": "'ready before arrival' is a measured number rather than an impression"
+   },
+   "summary": "A passed inspection moves the room to ready and stamps the margin before arrival, in one transaction.",
+   "endpoints": [
+    {
+     "m": "POST",
+     "p": "/inspections",
+     "q": null,
+     "req": {
+      "room": "214",
+      "inspector": "HK01",
+      "result": "pass"
+     },
+     "res": {
+      "inspection_id": "IN077",
+      "room": "214",
+      "cleaned_by": "Sunita",
+      "inspected_by": "Grace",
+      "result": "pass",
+      "state": "ready",
+      "ready_at": "2026-09-28T12:20:00Z",
+      "arrival_at": "2026-09-28T13:00:00Z",
+      "margin_minutes": 40
+     },
+     "codes": [
+      [
+       "201",
+       "",
+       "ready; `margin_minutes` is null when no arrival is known"
+      ]
+     ]
+    }
+   ],
+   "data": [
+    "rooms/stays: ready_at on the next stay (or on a room_readiness row: room_id, ready_at, arrival_at, margin_minutes); inspections row in the same transaction"
+   ],
+   "rules": [
+    "Inspection insert, readiness stamp and assignment close are one transaction — the board can never show ready with an open inspection or an open assignment.",
+    "`margin_minutes` = arrival_at − ready_at (negative when late) from the injected clock; stored, not recomputed.",
+    "The arrival time comes from the stay row (typed in at checkout, or from the seed).",
+    "The close is one session transaction: all writes or none; the test injects a failure after the first write and asserts nothing persisted."
+   ],
+   "ac_user": [
+    [
+     "214 inspected at 12:20, guest at one",
+     "Grace passes it",
+     "the board shows ready and Mr Menon sees 40 minutes of margin"
+    ]
+   ],
+   "ac_api": [
+    [
+     "a toinspect room with arrival 13:00, clock 12:20",
+     "POST /inspections pass",
+     "201 with margin_minutes 40; room ready; assignment closed"
+    ],
+    [
+     "a failure injected after the inspection insert",
+     "POST",
+     "rolled back: room still toinspect"
+    ],
+    [
+     "no arrival known",
+     "POST pass",
+     "201 with margin_minutes null"
+    ]
+   ],
+   "done": [
+    "Atomic pass; margin stamped; tested with rollback."
+   ],
+   "try": {
+    "screen": "room",
+    "do": "Check out a room with 'Next guest due' filled in, assign, start and finish it, have Grace (HK01) pass it on the Work screen, then open the room here.",
+    "see": "The inspection answer carries `ready_at`, `arrival_at` and `margin_minutes`, and the room card reads 'ready 12:20 · guest 13:00 · 40 min margin' — how long before the guest the room was ready, negative when late, 'no arrival known' when none was typed in. Inspection row, readiness stamp and assignment close are one transaction: the tests inject a failure after the first write and find nothing persisted."
+   }
+  },
+  {
+   "id": "B-06",
+   "title": "A clipboard nobody can re-tick",
+   "scene": "A guest is sent to an unclean room. The clipboard says it was inspected. Nobody can say by whom, or when the tick appeared.",
+   "build": "An append-only log: one row per transition — assigned, cleaned, inspected — written in the same transaction as the change, never updated, never deleted.",
+   "follows": "The sequence is complete; this is what makes it auditable, and the log that proves no room reached ready uninspected.",
+   "story": {
+    "as": "general manager",
+    "want": "see every assignment, clean and inspection in a record nobody can re-tick",
+    "so": "when a guest is sent to an unclean room I can see exactly who signed it off"
+   },
+   "summary": "Every transition is written to an append-only log in the same transaction, readable per room.",
+   "endpoints": [
+    {
+     "m": "GET",
+     "p": "/properties/{property}/rooms/{no}/history",
+     "q": "stay=<stay_id> (optional, default current)",
+     "req": null,
+     "res": {
+      "room": "214",
+      "events": [
+       {
+        "at": "2026-09-28T10:40:00Z",
+        "kind": "checked_out"
+       },
+       {
+        "at": "2026-09-28T10:52:00Z",
+        "kind": "assigned",
+        "housekeeper": "HK03"
+       },
+       {
+        "at": "2026-09-28T10:55:00Z",
+        "kind": "started"
+       },
+       {
+        "at": "2026-09-28T11:31:00Z",
+        "kind": "finished",
+        "clean_minutes": 36
+       },
+       {
+        "at": "2026-09-28T12:20:00Z",
+        "kind": "inspected",
+        "inspector": "HK01",
+        "result": "pass",
+        "margin_minutes": 40,
+        "arrival_at": "2026-09-28T13:00:00Z"
+       }
+      ]
+     },
+     "codes": [
+      [
+       "200",
+       "",
+       "events in `at` order"
+      ],
+      [
+       "404",
+       "/errors/no-such-room",
+       "no such room in this property"
+      ]
+     ]
+    }
+   ],
+   "data": [
+    "events(id, property_id, room_id, stay_id, assignment_id nullable, kind checked_out|assigned|started|finished|inspected|ready|charged|notified|swept, at, actor_id, data json) — insert only",
+    "no UPDATE/DELETE against events — enforced and tested"
+   ],
+   "rules": [
+    "Written in the same transaction as the change; a rolled-back inspection leaves no event.",
+    "Events carry ids and facts, never the guest's name.",
+    "Every event has an `actor_id` — who did it — from the request.",
+    "Event rows are inserted with a plain INSERT in the same session transaction as the change; the events model has no update path."
+   ],
+   "ac_user": [
+    [
+     "a guest was sent to an unclean room",
+     "Grace opens the room",
+     "she sees who ticked it and when — and nobody can re-tick it"
+    ]
+   ],
+   "ac_api": [
+    [
+     "a pass",
+     "commits",
+     "exactly one inspected event with inspector and result"
+    ],
+    [
+     "a failed transaction",
+     "rollback",
+     "no event"
+    ],
+    [
+     "any event",
+     "UPDATE/DELETE",
+     "refused"
+    ],
+    [
+     "a room with a guest",
+     "read events",
+     "no guest name in any row"
+    ]
+   ],
+   "done": [
+    "Every transition writes an event in-transaction; immutability enforced and tested; history endpoint."
+   ],
+   "try": {
+    "screen": "room",
+    "do": "Open 214 after it has been checked out, assigned, cleaned and inspected (or click it on the floor).",
+    "see": "The timeline: checked out, assigned to Sunita, clean started, clean finished, inspected by Grace — one row per transition, written in the same transaction as the change, in `at` order; every row also stores who did it. The database refuses any UPDATE or DELETE on it. No event carries the guest. `?stay=` reads an earlier stay's day."
+   }
+  },
+  {
+   "id": "B-07",
+   "title": "One file becomes an app",
+   "scene": "Pradeep wants the board on the front-desk screen, and the group's IT contractor will build it if there is an API worth reading.",
+   "build": "Routers for rooms, checkouts, assignments and inspections; one exception handler so every refusal has the same shape; tags, summaries and documented errors, so /docs is something the front-desk contractor could work from.",
+   "follows": "The rules so far have piled into one module. The problem+json shape is settled here.",
+   "story": {
+    "as": "front-desk screen developer",
+    "want": "read one set of API docs where every refusal has the same shape",
+    "so": "the screen can be built without guessing what an error means"
+   },
+   "summary": "Routers for rooms, checkouts, assignments and inspections, one error shape, and docs the front-desk contractor can build against.",
+   "endpoints": [
+    {
+     "m": "GET",
+     "p": "/docs",
+     "q": null,
+     "req": null,
+     "res": null,
+     "codes": [
+      [
+       "200",
+       "",
+       "every endpoint with summary, tag (rooms, checkouts, assignments, inspections) and documented errors"
+      ]
+     ]
+    },
+    {
+     "m": "GET",
+     "p": "/openapi.json",
+     "q": null,
+     "req": null,
+     "res": null,
+     "codes": [
+      [
+       "200",
+       "",
+       "every 4xx in the codes tables on the endpoint that can return it"
+      ]
+     ]
+    }
+   ],
+   "data": [
+    "no new tables"
+   ],
+   "rules": [
+    "Routers: rooms, checkouts, assignments, inspections under `roomready/routers/`; services hold no FastAPI imports.",
+    "One handler for every error class including validation and unexpected (500, generic detail, request id).",
+    "Every endpoint documents its errors with an example body.",
+    "`APIRouter` per resource, mounted from one `app.py`; services and rules import nothing from FastAPI."
+   ],
+   "ac_user": [
+    [
+     "the contractor",
+     "opens the docs",
+     "every call, every refusal, with examples"
+    ]
+   ],
+   "ac_api": [
+    [
+     "the spec",
+     "POST /inspections",
+     "step-skipped, self-inspection, 404 documented with problem+json examples"
+    ],
+    [
+     "an unexpected exception",
+     "any request",
+     "500 problem+json, type `/errors/internal`, no trace"
+    ]
+   ],
+   "done": [
+    "Modular layout; docs with errors; one handler."
+   ],
+   "try": {
+    "screen": "api",
+    "do": "Press Send on any endpoint, then open /docs and expand POST /inspections.",
+    "see": "Every endpoint from the live OpenAPI spec with every refusal it documents, each with an example body. Routers per resource (rooms, checkouts, assignments, inspections), services with no FastAPI import, one handler for every error shape — including a 500 with a request id and no stack trace."
+   }
+  },
+  {
+   "id": "B-08",
+   "title": "The rule table, and then the rule changes",
+   "scene": "The group decides standard rooms no longer need a separate inspection; suites still do. One sentence, and it cuts straight through the sequence.",
+   "build": "A parametrised table of every refusal the board can give, run through the test client with the clock overridden — then make inspection conditional on room type and watch exactly which rows move.",
+   "follows": "The refusals exist and time can be moved, so the sequence can now be changed with evidence rather than hope.",
+   "story": {
+    "as": "general manager",
+    "want": "stop requiring inspections on standard rooms and see exactly what moved",
+    "so": "a policy change does not quietly weaken the sequence for suites"
+   },
+   "summary": "A parametrised rule table covers every refusal, then inspection becomes conditional on room type and only its rows move.",
+   "endpoints": [
+    {
+     "m": "GET",
+     "p": "/settings",
+     "q": null,
+     "req": null,
+     "res": {
+      "inspection_required_for": [
+       "Standard",
+       "Deluxe",
+       "Suite"
+      ],
+      "stall_after_minutes": 60
+     },
+     "codes": [
+      [
+       "200",
+       "",
+       "read-only"
+      ]
+     ]
+    }
+   ],
+   "data": [
+    "settings INSPECTION_REQUIRED_FOR = comma list of types (default all three)",
+    "settings STALL_AFTER_MINUTES = minutes after which a clean in progress counts as stalled (default 60); shown here, used by the sweep"
+   ],
+   "rules": [
+    "The table: one row per case — checkout ok / not occupied / malformed / assign dirty / assign occupied / assign twice / start before assign / finish before start / inspect before finish / self-inspect / pass / fail / finish a Standard with inspection not required / finish a Suite with inspection not required.",
+    "Conditional inspection: when a room's type is not in INSPECTION_REQUIRED_FOR, `finish` moves it straight to ready (margin stamped then) and POST /inspections on it is step-skipped.",
+    "`pytest.mark.parametrize` from a CSV; clock via `dependency_overrides`.",
+    "Changing INSPECTION_REQUIRED_FOR to Deluxe,Suite moves exactly the two 'inspection not required' rows.",
+    "The table is one `@pytest.mark.parametrize` over `TestClient` with `dependency_overrides` for the clock; the rule change is a settings override in the same test module."
+   ],
+   "ac_user": [
+    [
+     "standard rooms no longer need inspection",
+     "Sunita finishes a Standard",
+     "it is ready at once; a Suite still waits for Grace"
+    ]
+   ],
+   "ac_api": [
+    [
+     "the table",
+     "runs",
+     "every refusal type appears; all pass"
+    ],
+    [
+     "INSPECTION_REQUIRED_FOR=Deluxe,Suite",
+     "runs",
+     "only the two tagged rows change"
+    ],
+    [
+     "GET /settings",
+     "any",
+     "200 live values"
+    ]
+   ],
+   "done": [
+    "Table, parametrised, all rows; conditional inspection implemented; GET /settings."
+   ],
+   "try": {
+    "screen": "rules",
+    "do": "Switch 'Inspection needed for' between the three settings and watch the rule table.",
+    "see": "Exactly the two rows tagged `inspection` move. With `INSPECTION_REQUIRED_FOR=Deluxe,Suite` a finished Standard room is ready at once, margin stamped at finish, and inspecting it is 409 step-skipped; a Suite still waits for Grace. These are the rows tests/rules.csv runs under all three settings with the clock overridden; GET /settings shows the live values."
+   }
+  },
+  {
+   "id": "B-09",
+   "title": "It runs on the machine in the back office",
+   "scene": "The property has one small PC behind the front desk. Nobody is installing Python on it.",
+   "build": "A Dockerfile for the app, an image built and run with a mapped port, and HOST=0.0.0.0 so the front-desk screen can reach it.",
+   "follows": "The app is finished and tested; this is the first day it leaves your laptop.",
+   "story": {
+    "as": "general manager",
+    "want": "run the board from a single image on the back-office machine",
+    "so": "I do not need a developer on site to start it"
+   },
+   "summary": "The app builds into an image and runs in a container on the back-office PC, reachable from the front-desk screen.",
+   "endpoints": [
+    {
+     "m": "GET",
+     "p": "/healthz",
+     "q": null,
+     "req": null,
+     "res": {
+      "status": "ok"
+     },
+     "codes": [
+      [
+       "200",
+       "",
+       "up"
+      ]
+     ]
+    }
+   ],
+   "data": [
+    "no new tables"
+   ],
+   "rules": [
+    "Dockerfile: `python:3.12-slim`, lock-file install, `HOST=0.0.0.0`, `PORT=8080`, `CMD uvicorn roomready.app:app --host 0.0.0.0 --port 8080`.",
+    "`docker build -t roomready .` and `docker run -p 8080:8080 roomready`; README shows them.",
+    "The front-desk screen reaches the board on the PC's IP:8080."
+   ],
+   "ac_user": [
+    [
+     "no Python or Java on the PC",
+     "the two commands",
+     "the board opens on the front-desk screen"
+    ]
+   ],
+   "ac_api": [
+    [
+     "clean machine with Docker",
+     "build",
+     "succeeds"
+    ],
+    [
+     "container running",
+     "health from another host",
+     "200"
+    ],
+    [
+     "container running",
+     "GET /rooms from another host",
+     "200 with 60 rooms"
+    ]
+   ],
+   "done": [
+    "Image builds; serves on the mapped port from another machine; README."
+   ],
+   "try": {
+    "screen": "runtime",
+    "do": "Read the health line, then run the two docker commands under 'How it runs'.",
+    "see": "The same board answers on port 8080 from a container bound to 0.0.0.0 — reachable from the front-desk screen on the back-office PC's IP, with no Python installed on it."
+   }
+  },
+  {
+   "id": "B-10",
+   "title": "It survives being switched off",
+   "scene": "The back-office PC is restarted during a power test at six in the morning, and the whole board is empty when housekeeping arrives.",
+   "build": "A volume for the data, configuration through an env-file rather than baked into the image, a .dockerignore, logs to stdout — and the README that walks one room from checkout to ready.",
+   "follows": "The image ran once; this makes it something the property can be handed.",
+   "story": {
+    "as": "general manager",
+    "want": "restart that machine without losing the board",
+    "so": "a six o'clock power test does not cost housekeeping the morning"
+   },
+   "summary": "Data survives a restart, configuration from an env-file, logs to stdout, and the README walks one room from checkout to ready.",
+   "endpoints": [],
+   "data": [
+    "SQLite on a named volume at /data; DATABASE_URL=sqlite:////data/roomready.db",
+    ".dockerignore excludes tests, .git, local databases, build output"
+   ],
+   "rules": [
+    "Every setting via `--env-file`; nothing baked in.",
+    "Logs to stdout, one line per event.",
+    "README: build, run with volume + env-file, and the curl calls for checkout → assign → start → finish → inspect.",
+    "Settings are read by pydantic-settings from the environment; the env-file is the only configuration input."
+   ],
+   "ac_user": [
+    [
+     "the six a.m. power test",
+     "the PC restarts",
+     "the board is exactly as housekeeping left it"
+    ],
+    [
+     "the group changes the inspection policy",
+     "one line, restart",
+     "no rebuild"
+    ]
+   ],
+   "ac_api": [
+    [
+     "rooms in progress",
+     "docker rm + run, same volume",
+     "GET /rooms unchanged"
+    ],
+    [
+     "INSPECTION_REQUIRED_FOR in env-file",
+     "start",
+     "GET /settings shows it"
+    ],
+    [
+     "docker logs",
+     "any",
+     "every request and event line; nothing under /app"
+    ]
+   ],
+   "done": [
+    "Volume, env-file, .dockerignore, stdout logs, README — verified."
+   ],
+   "try": {
+    "screen": "runtime",
+    "do": "Run the container with the volume and the env-file and work a room. Press Before restart, run the two commands under 'Restart the container', then press After restart.",
+    "see": "'Unchanged' — every room is in the state it was in, because the database lives on the volume (the page cannot restart the container itself; you run the commands). Change INSPECTION_REQUIRED_FOR in the env-file and restart: the rule book shows the new policy, no rebuild. Logs are on stdout (`docker logs`), one line per request and per event."
+   }
+  }
+ ]
+}

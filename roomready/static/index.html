@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RoomReady</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>RoomReady</h1>
+    <p class="sub">Hotel housekeeping: dirty, cleaned, inspected, ready — raced against the day's arrivals.</p>
+    <nav id="nav">
+      <button data-screen="board">The floor</button>
+      <button data-screen="work">Work</button>
+      <button data-screen="room">Room</button>
+      <button data-screen="rules">Rule book</button>
+      <button data-screen="api">API</button>
+      <button data-screen="runtime">Runtime</button>
+      <button id="walkbtn" class="walkbtn">Walkthrough</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section id="walk" class="walk" hidden>
+  <div class="walkhead">
+    <span class="muted" id="walkpos"></span>
+    <span class="walknav"><button id="walkprev">← Previous</button><button id="walknext">Next →</button><button id="walkclose">Close</button></span>
+  </div>
+  <div class="walkid" id="walkid"></div>
+  <h2 id="walktitle"></h2>
+  <p class="scene" id="walkscene"></p>
+  <div class="walkus" id="walkus"></div>
+  <div class="walktry" id="walktry"></div>
+  <dl class="walkdl">
+    <dt>What you build</dt><dd id="walkbuild"></dd>
+    <dt>Why it follows</dt><dd id="walkfollows"></dd>
+  </dl>
+  <details class="walkdet"><summary>Backend contract — endpoints, storage and rules</summary><div id="walkcontract"></div></details>
+  <details class="walkdet" open><summary>Acceptance — as the end user sees it</summary><div id="walkacuser"></div></details>
+  <details class="walkdet"><summary>Acceptance — at the API and database</summary><div id="walkacapi"></div></details>
+  <details class="walkdet"><summary>Definition of done</summary><div id="walkdone"></div></details>
+</section>
+
+<section id="board" class="screen">
+  <h2>The floor</h2>
+  <p class="muted">Sixty rooms at Harbour View, four floors. A room's state is read off its rows — the current stay, the open assignment, the readiness stamp — never stored. Click a room to open its card.</p>
+  <div class="row">
+    <select id="ffloor"><option value="">All floors</option><option value="1">Floor 1</option><option value="2">Floor 2</option><option value="3">Floor 3</option><option value="4">Floor 4</option></select>
+    <select id="fstate"><option value="">Any state</option><option value="occupied">Occupied</option><option value="dirty">Dirty</option><option value="assigned">Assigned</option><option value="cleaning">Cleaning</option><option value="toinspect">To inspect</option><option value="ready">Ready</option><option value="out_of_order">Out of order</option></select>
+    <select id="ftype"><option value="">Any type</option><option>Standard</option><option>Deluxe</option><option>Suite</option></select>
+    <span id="boardcount" class="muted"></span>
+  </div>
+  <div id="grid" class="grid"></div>
+  <div class="two">
+    <form id="checkoutform" class="card">
+      <b>Check out</b> <span class="muted">— Pradeep records a guest leaving; the room turns dirty</span>
+      <label>Room <input name="room" value="214" size="5"></label>
+      <label>At (UTC) <input name="at" placeholder="2026-09-28T10:40:00Z"></label>
+      <label>Next guest due (UTC, optional) <input name="arrival_at" placeholder="2026-09-28T13:00:00Z"></label>
+      <button type="submit">Check out</button>
+      <div id="checkoutok" class="card ok" hidden></div>
+      <div id="checkoutno" class="card no" hidden></div>
+    </form>
+    <div class="card">
+      <b>Housekeepers</b> <span class="muted">— and the room each one is on</span>
+      <ul id="staff" class="staff"></ul>
+    </div>
+  </div>
+</section>
+
+<section id="work" class="screen">
+  <h2>Work</h2>
+  <div class="two">
+    <div>
+      <form id="assignform" class="card">
+        <b>Assign</b> <span class="muted">— Grace gives a dirty room to a housekeeper</span>
+        <label>Room <input name="room" value="214" required></label>
+        <label>Housekeeper <select name="housekeeper" id="assignhk"></select></label>
+        <button type="submit">Assign</button>
+        <div id="assignok" class="card ok" hidden></div>
+        <div id="assignno" class="card no" hidden></div>
+      </form>
+      <form id="stepform" class="card">
+        <b>Start and finish</b> <span class="muted">— the clean is timed from the moment she starts</span>
+        <label>Room <input name="room" value="214" required></label>
+        <label>Assignment id <input name="assignment" placeholder="AS001" required></label>
+        <p class="muted small">The Assign answer fills both in; the API finds an assignment only by its id.</p>
+        <div class="row"><button type="button" id="startbtn" class="btn">Start</button><button type="button" id="finishbtn" class="btn">Finish</button></div>
+        <div id="stepok" class="card ok" hidden></div>
+        <div id="stepno" class="card no" hidden></div>
+      </form>
+    </div>
+    <div>
+      <form id="inspectform" class="card">
+        <b>Inspect</b> <span class="muted">— somebody who did not clean it</span>
+        <label>Room <input name="room" value="214" required></label>
+        <label>Inspector <select name="inspector" id="inspecthk"></select></label>
+        <label>Result <select name="result"><option value="pass">pass</option><option value="fail">fail</option></select></label>
+        <button type="submit">Record the inspection</button>
+        <div id="inspectok" class="card ok" hidden></div>
+        <div id="inspectno" class="card no" hidden></div>
+      </form>
+      <div class="card">
+        <b>When the board says no</b>
+        <p class="muted small">Every refusal the API documents, read from the live OpenAPI spec. One shape for all of them: <code>type, title, status, detail</code> plus the fields the ticket names. The last answer lands in the wire panel below.</p>
+        <table class="tbl" id="refusals"></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="room" class="screen">
+  <h2>Room</h2>
+  <form id="roomform" class="row">
+    <label>Room <input name="no" value="214" size="5"></label>
+    <label>Stay (optional) <input name="stay" placeholder="ST0029" size="8"></label>
+    <button type="submit">Open</button>
+  </form>
+  <div id="roomcard" class="card" hidden></div>
+</section>
+
+<section id="rules" class="screen">
+  <h2>Rule book</h2>
+  <div class="card"><dl id="settings"></dl></div>
+  <h3>The rule table</h3>
+  <p class="muted">The rows the test suite runs (<code>tests/rules.csv</code> — a test checks this page shows the same rows) under each setting of <code>INSPECTION_REQUIRED_FOR</code>. Change the select to see which rows move — only the two tagged <code>inspection</code>.</p>
+  <div class="row"><label>Inspection needed for <select id="ruleinspect"><option value="all">Standard, Deluxe, Suite</option><option value="deluxe_suite">Deluxe, Suite</option><option value="standard_deluxe">Standard, Deluxe</option></select></label></div>
+  <table class="tbl" id="ruletable"></table>
+</section>
+
+<section id="api" class="screen">
+  <h2>API</h2>
+  <p class="muted">Every call, from the live OpenAPI spec. Send calls it with a sample body; the answer lands in the wire panel. Full docs at <a href="/docs">/docs</a>.</p>
+  <table class="tbl" id="endpoints"></table>
+</section>
+
+<section id="runtime" class="screen">
+  <h2>Runtime</h2>
+  <div class="card">
+    <p><span id="healthdot" class="dot"></span> <span id="healthtext">checking…</span></p>
+    <p class="muted" id="runtimeline"></p>
+  </div>
+  <h3>How it runs</h3>
+  <div class="card">
+    <p>The PC behind the front desk runs the board from one image; the front-desk screen reaches it on that PC's IP, port 8080. Data lives on a volume, every setting comes from the env-file, logs go to stdout.</p>
+<pre>docker build -t roomready .
+docker run -d --name roomready -p 8080:8080 -v roomready-data:/data --env-file .env roomready
+docker logs -f roomready</pre>
+    <p>The image is built from the Dockerfile you write.</p>
+  </div>
+  <h3>Restart the container</h3>
+  <div class="card two">
+    <div>
+      <p>This page cannot restart the container — you run the commands beside. Press <b>Before restart</b> to keep every room's state on the board in this browser, restart, then press <b>After restart</b>: it reads the board again and shows what changed.</p>
+      <div class="row"><button type="button" id="beforebtn" class="btn">Before restart</button><button type="button" id="afterbtn" class="btn">After restart</button></div>
+      <div id="restartout" class="muted"></div>
+    </div>
+<pre>docker rm -f roomready
+docker run -d --name roomready -p 8080:8080 -v roomready-data:/data --env-file .env roomready</pre>
+  </div>
+</section>
+
+<aside class="wire">
+  <h3>Last response on the wire</h3>
+  <pre id="wire">—</pre>
+</aside>
+
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
