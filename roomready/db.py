@@ -1,4 +1,3 @@
-"""Engine, sessions and the database dependency. SQLite; the schema is created at start-up."""
 from collections.abc import Iterator
 
 from fastapi import Request

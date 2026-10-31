@@ -1,4 +1,3 @@
-"""The clock is a dependency: every time-based rule reads it, so a test can move time instead of waiting."""
 from datetime import datetime, timedelta, timezone
 
 
@@ -31,3 +30,13 @@ class FixedClock(Clock):
 
 def get_clock() -> Clock:
     return SystemClock()
+
+
+def as_utc(dt: datetime) -> datetime:
+    """SQLite hands naive datetimes back; everything the app stores is UTC."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
+def minutes_between(start: datetime, end: datetime) -> int:
+    """Whole minutes, rounded down — the unit every quote, wait and turn is stored in."""
+    return int((as_utc(end) - as_utc(start)).total_seconds() // 60)

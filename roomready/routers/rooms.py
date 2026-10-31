@@ -10,7 +10,7 @@ from ..schemas import (
     RoomType,
 )
 from ..services import rooms
-from . import SessionDep
+from . import ClockDep, SessionDep
 
 router = APIRouter(prefix="/properties/{property}")
 
@@ -22,19 +22,20 @@ router = APIRouter(prefix="/properties/{property}")
 def board(
     property: str,
     session: SessionDep,
+    clock: ClockDep,
     floor: Annotated[int | None, Query(ge=1, le=4)] = None,
     state: RoomState | None = None,
     type_: Annotated[RoomType | None, Query(alias="type")] = None,
 ) -> BoardOut:
-    return rooms.board(session, property, floor, state, type_)
+    return rooms.board(session, property, floor, state, type_, clock)
 
 
 @router.get(
     "/rooms/{no}",
     response_model=RoomOut,
 )
-def one(property: str, no: str, session: SessionDep) -> RoomOut:
-    return rooms.one(session, property, no)
+def one(property: str, no: str, session: SessionDep, clock: ClockDep) -> RoomOut:
+    return rooms.one(session, property, no, clock)
 
 
 @router.get(

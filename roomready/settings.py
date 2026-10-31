@@ -1,4 +1,3 @@
-"""One settings object, read once at start-up. Nothing is hard-coded."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

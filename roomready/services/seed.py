@@ -1,17 +1,19 @@
-"""Load the property, its 60 rooms and nine housekeepers once, before the first request.
-Idempotent: a second start changes nothing."""
+"""Load the property, its 60 rooms and nine housekeepers once, before the first request, and give every room
+its current guest. Idempotent: a second start changes nothing."""
 import csv
+from datetime import timedelta
 from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import Housekeeper, Property, Room
+from ..clock import Clock
+from ..models import Housekeeper, Property, Room, Stay
 
 PROPERTY = ("harbour-view", "Harbour View")
 
 
-def seed(session: Session, seed_dir: str) -> None:
+def seed(session: Session, seed_dir: str, clock: Clock) -> None:
     prop = session.scalar(select(Property).where(Property.slug == PROPERTY[0]))
     if prop is None:
         prop = Property(slug=PROPERTY[0], name=PROPERTY[1])
@@ -29,5 +31,12 @@ def seed(session: Session, seed_dir: str) -> None:
             for row in csv.DictReader(f):
                 session.add(Housekeeper(property_id=prop.id, code=row["id"], name=row["name"]))
 
+    session.flush()
+    # the hotel is full when the app first starts: every room has a guest who checked in yesterday
+    if session.scalar(select(Stay.id).where(Stay.property_id == prop.id).limit(1)) is None:
+        checked_in = clock.now() - timedelta(days=1)
+        for room in session.scalars(select(Room).where(Room.property_id == prop.id)):
+            session.add(Stay(property_id=prop.id, room_id=room.id,
+                            guest_ref=f"BK-{room.no}-1", checked_in_at=checked_in))
     session.flush()
     session.commit()
