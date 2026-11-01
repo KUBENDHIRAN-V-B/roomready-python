@@ -1,4 +1,6 @@
-from roomready.models import Stay
+from sqlalchemy import func, select
+
+from roomready.models import Event, Stay
 from tests.conftest import T0, P, iso, room
 
 
@@ -24,12 +26,12 @@ def test_the_next_arrival_can_be_typed_in_with_the_checkout(client, db):
 def test_a_room_already_dirty_is_400_not_occupied_and_nothing_is_written(client, db):
     client.post("/checkouts", json={"room": "214", "at": iso(T0)})
     with db() as s:
-        before = (s.get(Stay, 29).checked_out_at)
+        before = (s.get(Stay, 29).checked_out_at, s.scalar(select(func.count()).select_from(Event)))
     r = client.post("/checkouts", json={"room": "214", "at": iso(T0)})
     assert r.status_code == 400
     assert r.json()["type"] == "/errors/room-not-occupied" and r.headers["content-type"].startswith("application/problem+json")
     with db() as s:
-        assert (s.get(Stay, 29).checked_out_at) == before
+        assert (s.get(Stay, 29).checked_out_at, s.scalar(select(func.count()).select_from(Event))) == before
 
 
 def test_a_timestamp_in_the_future_or_before_check_in_is_422_naming_the_field(client, db):

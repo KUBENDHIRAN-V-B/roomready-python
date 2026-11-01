@@ -1,4 +1,3 @@
-"""A dirty room is assigned, the clean is timed against the injected clock, the duration is stored once."""
 from roomready.db import get_session
 from roomready.models import Assignment
 from tests.conftest import P, assign, assigned, checkout, room
@@ -26,7 +25,8 @@ def test_start_finish_stores_duration_and_read_does_not_recompute(client, clock,
     clock.advance(hours=3)
     with db() as s:
         assert s.get(Assignment, 1).clean_minutes == 36, "stored at finish, not recomputed on read"
-    assert room(client, "214")["since_minutes"] == 180
+    finished = [e for e in client.get(f"{P}/rooms/214/history").json()["events"] if e["kind"] == "finished"]
+    assert finished[0]["clean_minutes"] == 36 and room(client, "214")["since_minutes"] == 180
 
 
 def test_clean_minutes_are_whole_minutes_rounded_down(client, clock):

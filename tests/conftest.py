@@ -43,11 +43,6 @@ def client(app):
         yield c
 
 
-def inspect(client, room="214", inspector="HK01", result="pass"):
-    return client.post("/inspections", json={"room": room, "inspector": inspector, "result": result})
-
-
-
 def room(client, no="214") -> dict:
     r = client.get(f"{P}/rooms/{no}")
     assert r.status_code == 200, r.text
@@ -93,3 +88,7 @@ def cleaned(client, clock, room="214", housekeeper="HK03", minutes=36, arrival_a
     r = client.post(f"/assignments/{a['assignment_id']}/finish")
     assert r.status_code == 200, r.text
     return {**r.json(), "room": room, "housekeeper": housekeeper}
+
+
+def inspect(client, room="214", inspector="HK01", result="pass"):
+    return client.post("/inspections", json={"room": room, "inspector": inspector, "result": result})

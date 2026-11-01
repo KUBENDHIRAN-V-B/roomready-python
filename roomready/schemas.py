@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, PlainSerializer
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
 
 
 RoomType = Literal["Standard", "Deluxe", "Suite"]
@@ -101,3 +101,26 @@ class InspectOut(BaseModel):
     margin_minutes: int | None = None
 
 
+
+
+
+EventKind = Literal["checked_out", "assigned", "started", "finished", "inspected", "ready"]
+
+
+class EventOut(BaseModel):
+    """One transition and its facts. Only the facts the kind carries are present (the route drops the rest)."""
+    model_config = ConfigDict(extra="forbid")
+
+    at: UtcZ
+    kind: EventKind
+    housekeeper: str | None = Field(default=None, description="assigned: the housekeeper's id")
+    clean_minutes: int | None = Field(default=None, description="finished: the stored duration")
+    inspector: str | None = Field(default=None, description="inspected: the inspector's id")
+    result: Result | None = Field(default=None, description="inspected: pass or fail")
+    margin_minutes: int | None = Field(default=None, description="inspected (pass): minutes before the arrival; absent when no arrival is known")
+    arrival_at: UtcZ | None = Field(default=None, description="inspected (pass): the arrival the margin was measured against, when known")
+
+
+class HistoryOut(BaseModel):
+    room: str
+    events: list[EventOut]

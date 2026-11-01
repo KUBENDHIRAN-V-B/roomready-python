@@ -1,9 +1,9 @@
-"""Rooms, stays, assignments, inspections and readiness. A room's state is derived on read from its rows,
+"""Rooms, stays, assignments, inspections, readiness and the event log. A room's state is derived on read from its rows,
 and there is deliberately no `state` column on rooms. Durations and margins are stamped once and never
 recomputed."""
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -99,3 +99,19 @@ class Readiness(Base):
     ready_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     arrival_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     margin_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+
+class Event(Base):
+    """One row per transition, written in the same transaction as the change. Insert only."""
+    __tablename__ = "events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"))
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"))
+    stay_id: Mapped[int] = mapped_column(ForeignKey("stays.id"))
+    assignment_id: Mapped[int | None] = mapped_column(ForeignKey("assignments.id"), nullable=True)
+    kind: Mapped[str] = mapped_column(String(16))  # checked_out | assigned | started | finished | inspected | ready
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    actor_id: Mapped[str] = mapped_column(String(16))  # who did it: a housekeeper code, or the desk/supervisor role
+    data: Mapped[str] = mapped_column(Text, default="{}")  # JSON: ids and facts, never the guest

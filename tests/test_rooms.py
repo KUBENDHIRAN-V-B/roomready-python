@@ -68,7 +68,7 @@ def test_one_room_and_the_404s(client):
     assert body == {"no": "214", "floor": 2, "type": "Deluxe", "state": "occupied", "assigned_to": None}
     r = client.get(f"{P}/rooms/999")
     assert r.status_code == 404 and r.json()["type"] == "/errors/no-such-room"
-    for path in ("/rooms", "/rooms/214", "/housekeepers"):
+    for path in ("/rooms", "/rooms/214", "/housekeepers", "/rooms/214/history"):
         r = client.get(f"/properties/sea-view{path}")
         assert r.status_code == 404 and r.json()["type"] == "/errors/no-such-property", path
 

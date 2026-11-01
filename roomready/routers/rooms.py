@@ -4,12 +4,13 @@ from fastapi import APIRouter, Query
 
 from ..schemas import (
     BoardOut,
+    HistoryOut,
     HousekeepersOut,
     RoomOut,
     RoomState,
     RoomType,
 )
-from ..services import rooms
+from ..services import history, rooms
 from . import ClockDep, SessionDep
 
 router = APIRouter(prefix="/properties/{property}")
@@ -36,6 +37,15 @@ def board(
 )
 def one(property: str, no: str, session: SessionDep, clock: ClockDep) -> RoomOut:
     return rooms.one(session, property, no, clock)
+
+
+@router.get(
+    "/rooms/{no}/history",
+    response_model=HistoryOut,
+    response_model_exclude_none=True,
+)
+def room_history(property: str, no: str, session: SessionDep, stay: str | None = None) -> HistoryOut:
+    return history.history(session, property, no, stay)
 
 
 @router.get(

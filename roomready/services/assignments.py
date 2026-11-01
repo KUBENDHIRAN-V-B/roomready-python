@@ -1,5 +1,3 @@
-"""Assign a dirty room, start the clean, finish it and store how long it took. Every refusal is raised
-here, never in a route."""
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -8,6 +6,7 @@ from ..clock import Clock, as_utc, minutes_between
 from ..errors import AlreadyAssigned, NoSuchAssignment, StepSkipped
 from ..ids import assignment_internal, assignment_public
 from ..models import Assignment, Housekeeper, Property, Readiness, Room
+from . import events
 from .rooms import View, get_housekeeper, get_room, skipped, view
 
 
@@ -37,6 +36,7 @@ def assign(session: Session, prop: Property, room_no: str, housekeeper_code: str
                            housekeeper_id=housekeeper.id, assigned_at=now)
     session.add(assignment)
     session.flush()
+    events.record(session, prop.id, room, v.stay.id, "assigned", now, events.SUPERVISOR, {"housekeeper": housekeeper.code}, assignment_id=assignment.id)
     session.commit()
     return assignment, housekeeper
 
@@ -57,6 +57,7 @@ def start(session: Session, prop: Property, public_id: str, clock: Clock) -> Ass
         raise _skipped(v)
     now = clock.now()
     assignment.started_at = now
+    events.record(session, prop.id, v.room, v.stay.id, "started", now, v.housekeeper.code, assignment_id=assignment.id)
     session.commit()
     return assignment
 
@@ -74,6 +75,13 @@ def mark_ready(session: Session, prop: Property, v: View, now: datetime) -> Read
     return readiness
 
 
+def readiness_facts(readiness: Readiness) -> dict:
+    """What the inspected/ready event records about the stamp: the margin and the arrival it was measured against."""
+    if readiness.arrival_at is None:
+        return {}
+    return {"margin_minutes": readiness.margin_minutes, "arrival_at": f"{as_utc(readiness.arrival_at):%Y-%m-%dT%H:%M:%SZ}"}
+
+
 def finish(session: Session, prop: Property, public_id: str, clock: Clock) -> Assignment:
     assignment = get_assignment(session, prop, public_id)
     v = _open_view(session, assignment)
@@ -82,6 +90,8 @@ def finish(session: Session, prop: Property, public_id: str, clock: Clock) -> As
     now = clock.now()
     assignment.finished_at = now
     assignment.clean_minutes = minutes_between(assignment.started_at, now)  # stamped once, never recomputed
+    events.record(session, prop.id, v.room, v.stay.id, "finished", now, v.housekeeper.code,
+                  {"clean_minutes": assignment.clean_minutes}, assignment_id=assignment.id)
     session.commit()
     return assignment
 

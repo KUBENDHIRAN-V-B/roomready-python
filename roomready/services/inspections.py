@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from ..clock import Clock
 from ..errors import SelfInspection
 from ..models import Housekeeper, Inspection, Property, Readiness
-from .assignments import mark_ready
+from . import events
+from .assignments import mark_ready, readiness_facts
 from .rooms import get_housekeeper, get_room, skipped, view
 
 
@@ -36,10 +37,13 @@ def inspect(session: Session, prop: Property, room_no: str, inspector_code: str,
     )
     session.add(inspection)
     session.flush()
+    data = {"inspector": inspector.code, "result": result}
     readiness = None
     if result == "fail":
         v.assignment.closed_at = now                                  # back to dirty; the next assignment is a new row
     else:
         readiness = mark_ready(session, prop, v, now)                 # ready + margin + close, one transaction
+        data.update(readiness_facts(readiness))
+    events.record(session, prop.id, room, v.stay.id, "inspected", now, inspector.code, data, assignment_id=v.assignment.id)
     session.commit()
     return Outcome(inspection, v.housekeeper, inspector, view(session, room).state, readiness)   # derived from the rows
