@@ -48,6 +48,7 @@ def test_a_failed_inspection_returns_the_room_to_dirty_and_the_next_assignment_i
     assert r.status_code == 201
     body = r.json()
     assert body["result"] == "fail" and body["state"] == "dirty" and body["cleaned_by"] == "Sunita" and body["inspected_by"] == "Grace"
+    assert body["ready_at"] is None and body["margin_minutes"] is None
     assert room(client, "214")["state"] == "dirty"
     r = assign(client, "214", "HK04")
     assert r.status_code == 201 and r.json()["assignment_id"] == "AS002"

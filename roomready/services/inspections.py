@@ -1,12 +1,13 @@
-"""Somebody else inspects the room. A fail returns the room to dirty and closes the assignment; a pass is
-recorded, and the room stays toinspect."""
+"""Somebody else inspects the room. A pass stamps the readiness and closes the assignment in the same
+transaction as the inspection row; a fail returns the room to dirty and closes the assignment."""
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
 from ..clock import Clock
 from ..errors import SelfInspection
-from ..models import Housekeeper, Inspection, Property
+from ..models import Housekeeper, Inspection, Property, Readiness
+from .assignments import mark_ready
 from .rooms import get_housekeeper, get_room, skipped, view
 
 
@@ -16,6 +17,7 @@ class Outcome:
     cleaner: Housekeeper
     inspector: Housekeeper
     state: str
+    readiness: Readiness | None
 
 
 
@@ -34,7 +36,10 @@ def inspect(session: Session, prop: Property, room_no: str, inspector_code: str,
     )
     session.add(inspection)
     session.flush()
+    readiness = None
     if result == "fail":
         v.assignment.closed_at = now                                  # back to dirty; the next assignment is a new row
+    else:
+        readiness = mark_ready(session, prop, v, now)                 # ready + margin + close, one transaction
     session.commit()
-    return Outcome(inspection, v.housekeeper, inspector, view(session, room).state)   # derived from the rows
+    return Outcome(inspection, v.housekeeper, inspector, view(session, room).state, readiness)   # derived from the rows

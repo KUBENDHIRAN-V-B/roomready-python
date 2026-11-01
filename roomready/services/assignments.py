@@ -1,11 +1,13 @@
 """Assign a dirty room, start the clean, finish it and store how long it took. Every refusal is raised
 here, never in a route."""
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
-from ..clock import Clock, minutes_between
+from ..clock import Clock, as_utc, minutes_between
 from ..errors import AlreadyAssigned, NoSuchAssignment, StepSkipped
 from ..ids import assignment_internal, assignment_public
-from ..models import Assignment, Housekeeper, Property, Room
+from ..models import Assignment, Housekeeper, Property, Readiness, Room
 from .rooms import View, get_housekeeper, get_room, skipped, view
 
 
@@ -57,6 +59,19 @@ def start(session: Session, prop: Property, public_id: str, clock: Clock) -> Ass
     assignment.started_at = now
     session.commit()
     return assignment
+
+
+def mark_ready(session: Session, prop: Property, v: View, now: datetime) -> Readiness:
+    """The readiness stamp — when the room was ready, the arrival it was ready for, and the margin, stored once."""
+    arrival = as_utc(v.stay.arrival_at) if v.stay.arrival_at is not None else None
+    readiness = Readiness(
+        property_id=prop.id, room_id=v.room.id, stay_id=v.stay.id, ready_at=now, arrival_at=arrival,
+        margin_minutes=minutes_between(now, arrival) if arrival is not None else None
+    )
+    session.add(readiness)
+    v.assignment.closed_at = now
+    session.flush()
+    return readiness
 
 
 def finish(session: Session, prop: Property, public_id: str, clock: Clock) -> Assignment:
