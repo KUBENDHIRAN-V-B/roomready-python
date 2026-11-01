@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, PlainSerializer
 
 RoomType = Literal["Standard", "Deluxe", "Suite"]
 RoomState = Literal["occupied", "dirty", "assigned", "cleaning", "toinspect", "ready", "out_of_order"]
+Result = Literal["pass", "fail"]
 
 
 def _iso_z(dt: datetime) -> str:
@@ -80,3 +81,20 @@ class FinishOut(BaseModel):
     assignment_id: str
     finished_at: UtcZ
     clean_minutes: int
+
+
+class InspectIn(BaseModel):
+    room: str = Field(min_length=3, max_length=8)
+    inspector: str = Field(min_length=3, max_length=8)
+    result: Result
+
+
+class InspectOut(BaseModel):
+    inspection_id: str
+    room: str
+    cleaned_by: str
+    inspected_by: str
+    result: Result
+    state: RoomState
+
+

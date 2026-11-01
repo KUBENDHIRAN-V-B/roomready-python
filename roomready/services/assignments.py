@@ -3,7 +3,7 @@ here, never in a route."""
 from sqlalchemy.orm import Session
 
 from ..clock import Clock, minutes_between
-from ..errors import NoSuchAssignment, StepSkipped
+from ..errors import AlreadyAssigned, NoSuchAssignment, StepSkipped
 from ..ids import assignment_internal, assignment_public
 from ..models import Assignment, Housekeeper, Property, Room
 from .rooms import View, get_housekeeper, get_room, skipped, view
@@ -22,9 +22,12 @@ def get_assignment(session: Session, prop: Property, public_id: str) -> Assignme
 
 
 def assign(session: Session, prop: Property, room_no: str, housekeeper_code: str, clock: Clock) -> tuple[Assignment, Housekeeper]:
+    # The order of checks is fixed so a test can target each refusal — room, housekeeper, already assigned, step
     room = get_room(session, prop, room_no)
     housekeeper = get_housekeeper(session, prop, housekeeper_code)
     v = view(session, room)
+    if v.assignment is not None:
+        raise AlreadyAssigned(f"Room {room.no} is already assigned to {v.housekeeper.name}", assigned_to=v.housekeeper.name)
     if v.state != "dirty":
         raise _skipped(v)
     now = clock.now()

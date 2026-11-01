@@ -40,6 +40,14 @@ class StepSkipped(DomainError):
     status, type, title = 409, "/errors/step-skipped", "A step in the sequence was skipped"
 
 
+class AlreadyAssigned(DomainError):
+    status, type, title = 409, "/errors/already-assigned", "The room already has an open assignment"
+
+
+class SelfInspection(DomainError):
+    status, type, title = 409, "/errors/self-inspection", "The inspector cleaned this room; somebody else must inspect it"
+
+
 # (status, type, title) of the errors no domain class raises
 VALIDATION = (422, "/errors/validation", "The request body is not valid")
 FILTER = (400, "/errors/validation", "Invalid filter value")
