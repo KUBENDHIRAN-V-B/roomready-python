@@ -15,7 +15,8 @@ P = "/properties/harbour-view"
 
 def make_settings(tmp_path: Path, **overrides) -> Settings:
     db = (tmp_path / "roomready-test.db").as_posix()
-    values = {"database_url": f"sqlite:///{db}", "seed_dir": str(ROOT / "seed")}
+    values = {"database_url": f"sqlite:///{db}", "seed_dir": str(ROOT / "seed"),
+              "inspection_required_for": "Standard,Deluxe,Suite", "stall_after_minutes": 60}
     values.update(overrides)
     return Settings(_env_file=None, **values)
 

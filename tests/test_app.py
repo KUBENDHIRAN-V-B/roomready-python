@@ -1,4 +1,3 @@
-"""Routers per resource, docs that list every documented error, one handler for every error class."""
 import logging
 import subprocess
 import sys
@@ -17,6 +16,7 @@ TAG = {
     "/assignments/{assignment_id}/start": "assignments",
     "/assignments/{assignment_id}/finish": "assignments",
     "/inspections": "inspections",
+    "/settings": "settings",
 }
 
 
@@ -25,7 +25,7 @@ def test_docs_render_and_list_every_endpoint_with_a_summary_and_its_tag(client):
     spec = client.get("/openapi.json").json()
     paths = spec["paths"]
     assert set(paths) == set(TAG)
-    assert {t["name"] for t in spec["tags"]} >= {"rooms", "checkouts", "assignments", "inspections"}
+    assert {t["name"] for t in spec["tags"]} >= {"rooms", "checkouts", "assignments", "inspections", "settings"}
     for path, ops in paths.items():
         for op in ops.values():
             assert op.get("summary"), path
@@ -118,4 +118,4 @@ def test_services_import_nothing_from_fastapi_even_indirectly():
 
 
 def test_one_router_per_resource():
-    assert {p.stem for p in (PKG / "routers").glob("*.py")} >= {"rooms", "checkouts", "assignments", "inspections"}
+    assert {p.stem for p in (PKG / "routers").glob("*.py")} >= {"rooms", "checkouts", "assignments", "inspections", "settings"}

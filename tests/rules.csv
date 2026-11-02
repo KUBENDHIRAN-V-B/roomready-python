@@ -1,0 +1,15 @@
+case,tag,setup,action,status_all,type_all,status_deluxe_suite,type_deluxe_suite,status_standard_deluxe,type_standard_deluxe
+checkout_ok,checkout,,checkout 214,201,,201,,201,
+not_occupied,checkout,checkout 214,checkout 214,400,/errors/room-not-occupied,400,/errors/room-not-occupied,400,/errors/room-not-occupied
+malformed,checkout,,checkout_without_time 214,422,/errors/validation,422,/errors/validation,422,/errors/validation
+assign_dirty,assign,checkout 214,assign 214 HK03,201,,201,,201,
+assign_occupied,assign,,assign 214 HK03,409,/errors/step-skipped,409,/errors/step-skipped,409,/errors/step-skipped
+assign_twice,assign,checkout 214;assign 214 HK03,assign 214 HK04,409,/errors/already-assigned,409,/errors/already-assigned,409,/errors/already-assigned
+start_before_assign,sequence,checkout 214;assign 214 HK03;start;finish;inspect HK01 fail,start,409,/errors/step-skipped,409,/errors/step-skipped,409,/errors/step-skipped
+finish_before_start,sequence,checkout 214;assign 214 HK03,finish,409,/errors/step-skipped,409,/errors/step-skipped,409,/errors/step-skipped
+inspect_before_finish,sequence,checkout 214;assign 214 HK03;start,inspect HK01 pass,409,/errors/step-skipped,409,/errors/step-skipped,409,/errors/step-skipped
+self_inspect,inspect,checkout 214;assign 214 HK03;start;finish,inspect HK03 pass,409,/errors/self-inspection,409,/errors/self-inspection,409,/errors/self-inspection
+pass,inspect,checkout 214;assign 214 HK03;start;finish,inspect HK01 pass,201,,201,,201,
+fail,inspect,checkout 214;assign 214 HK03;start;finish,inspect HK01 fail,201,,201,,201,
+finish_standard_no_inspection,inspection,checkout 101;assign 101 HK03;start;finish,inspect HK01 pass,201,,409,/errors/step-skipped,201,
+finish_suite_no_inspection,inspection,checkout 111;assign 111 HK03;start;finish,inspect HK01 pass,201,,201,,409,/errors/step-skipped

@@ -6,6 +6,7 @@ from ..clock import Clock, as_utc, minutes_between
 from ..errors import AlreadyAssigned, NoSuchAssignment, StepSkipped
 from ..ids import assignment_internal, assignment_public
 from ..models import Assignment, Housekeeper, Property, Readiness, Room
+from ..settings import Settings
 from . import events
 from .rooms import View, get_housekeeper, get_room, skipped, view
 
@@ -82,7 +83,7 @@ def readiness_facts(readiness: Readiness) -> dict:
     return {"margin_minutes": readiness.margin_minutes, "arrival_at": f"{as_utc(readiness.arrival_at):%Y-%m-%dT%H:%M:%SZ}"}
 
 
-def finish(session: Session, prop: Property, public_id: str, clock: Clock) -> Assignment:
+def finish(session: Session, prop: Property, public_id: str, clock: Clock, settings: Settings) -> Assignment:
     assignment = get_assignment(session, prop, public_id)
     v = _open_view(session, assignment)
     if v.state != "cleaning":
@@ -92,6 +93,11 @@ def finish(session: Session, prop: Property, public_id: str, clock: Clock) -> As
     assignment.clean_minutes = minutes_between(assignment.started_at, now)  # stamped once, never recomputed
     events.record(session, prop.id, v.room, v.stay.id, "finished", now, v.housekeeper.code,
                   {"clean_minutes": assignment.clean_minutes}, assignment_id=assignment.id)
+    if not settings.needs_inspection(v.room.type):
+        # This room type needs no second pair of eyes — the finish is the moment it becomes ready
+        readiness = mark_ready(session, prop, v, now)
+        events.record(session, prop.id, v.room, v.stay.id, "ready", now, v.housekeeper.code,
+                      readiness_facts(readiness), assignment_id=assignment.id)
     session.commit()
     return assignment
 

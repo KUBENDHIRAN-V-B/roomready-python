@@ -77,7 +77,8 @@ class StartOut(BaseModel):
 
 
 class FinishOut(BaseModel):
-    """This answer's shape: the room's state is not part of it — read the room (it is toinspect)."""
+    """This answer's shape: the room's state is not part of it — read the room (it is toinspect, or ready when its type
+    needs no inspection)."""
     assignment_id: str
     finished_at: UtcZ
     clean_minutes: int
@@ -117,10 +118,17 @@ class EventOut(BaseModel):
     clean_minutes: int | None = Field(default=None, description="finished: the stored duration")
     inspector: str | None = Field(default=None, description="inspected: the inspector's id")
     result: Result | None = Field(default=None, description="inspected: pass or fail")
-    margin_minutes: int | None = Field(default=None, description="inspected (pass): minutes before the arrival; absent when no arrival is known")
-    arrival_at: UtcZ | None = Field(default=None, description="inspected (pass): the arrival the margin was measured against, when known")
+    margin_minutes: int | None = Field(default=None, description="inspected (pass) or ready: minutes before the arrival; absent when no arrival is known")
+    arrival_at: UtcZ | None = Field(default=None, description="inspected (pass) or ready: the arrival the margin was measured against, when known")
 
 
 class HistoryOut(BaseModel):
     room: str
     events: list[EventOut]
+
+
+class SettingsOut(BaseModel):
+    inspection_required_for: list[RoomType]
+    stall_after_minutes: int
+
+

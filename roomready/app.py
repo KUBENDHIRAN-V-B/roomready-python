@@ -17,6 +17,7 @@ from .handlers import (
     install_handlers,
 )
 from .routers import assignments, checkouts, inspections, rooms
+from .routers import settings as settings_router
 from .services.seed import seed
 from .settings import Settings
 
@@ -26,6 +27,7 @@ TAGS = [
     {"name": "checkouts", "description": "A guest leaves; the room is dirty"},
     {"name": "assignments", "description": "Assign, start, finish — the clean, timed"},
     {"name": "inspections", "description": "Somebody else passes or fails the room"},
+    {"name": "settings", "description": "Rules in force"},
 ]
 
 
@@ -83,6 +85,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="RoomReady", version="0.1.0", lifespan=lifespan, openapi_tags=TAGS,
         description="Hotel housekeeping: dirty, cleaned, inspected, ready — raced against the day's arrivals."
     )
+    app.state.settings = settings
     app.state.sessionmaker = make_sessionmaker(engine)
 
     @app.middleware("http")
@@ -92,7 +95,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     install_handlers(app)
-    for r in (rooms.router, checkouts.router, assignments.router, inspections.router):
+    for r in (rooms.router, checkouts.router, assignments.router, inspections.router, settings_router.router):
         app.include_router(r)
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 

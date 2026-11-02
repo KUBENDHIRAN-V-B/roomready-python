@@ -8,7 +8,7 @@ from ..schemas import AssignIn, AssignOut, FinishOut, StartOut
 from ..services import assignments
 from ..services.rooms import get_property
 from ..services.seed import PROPERTY
-from . import ClockDep, SessionDep
+from . import ClockDep, SessionDep, SettingsDep
 
 router = APIRouter(prefix="/assignments", tags=["assignments"])
 
@@ -49,13 +49,13 @@ def start(assignment_id: str, session: SessionDep, clock: ClockDep) -> StartOut:
 @router.post(
     "/{assignment_id}/finish",
     response_model=FinishOut,
-    summary="The clean is done and timed; the room waits for inspection",
+    summary="The clean is done and timed; the room waits for inspection (or is ready, if its type needs none)",
     responses=responses(
         (StepSkipped, "Room 214 is assigned; it needs start first", {"state": "assigned", "needs": "start"}),
         (NoSuchAssignment, "There is no assignment 'AS999'")
     ),
 )
-def finish(assignment_id: str, session: SessionDep, clock: ClockDep) -> FinishOut:
-    assignment = assignments.finish(session, get_property(session, PROPERTY[0]), assignment_id, clock)
+def finish(assignment_id: str, session: SessionDep, clock: ClockDep, settings: SettingsDep) -> FinishOut:
+    assignment = assignments.finish(session, get_property(session, PROPERTY[0]), assignment_id, clock, settings)
     return FinishOut(assignment_id=assignments.public(assignment), finished_at=assignment.finished_at,
                      clean_minutes=assignment.clean_minutes)

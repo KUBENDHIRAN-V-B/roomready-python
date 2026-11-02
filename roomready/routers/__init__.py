@@ -1,12 +1,18 @@
 """One router per resource."""
-"""One router per resource."""
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from ..clock import Clock, get_clock
 from ..db import get_session
+from ..settings import Settings
+
+
+def get_settings(request: Request) -> Settings:
+    return request.app.state.settings
+
 
 SessionDep = Annotated[Session, Depends(get_session)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
