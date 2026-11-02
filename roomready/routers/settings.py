@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from ..schemas import SettingsOut
+from ..schemas import HealthOut, SettingsOut
 from . import SettingsDep
 
 router = APIRouter(tags=["settings"])
@@ -12,3 +12,8 @@ def get_settings_(settings: SettingsDep) -> SettingsOut:
                        stall_after_minutes=settings.stall_after_minutes)
 
 
+
+
+@router.get("/healthz", response_model=HealthOut, summary="Is the app up")
+def health() -> HealthOut:
+    return HealthOut(status="ok")

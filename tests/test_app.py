@@ -17,6 +17,7 @@ TAG = {
     "/assignments/{assignment_id}/finish": "assignments",
     "/inspections": "inspections",
     "/settings": "settings",
+    "/healthz": "settings",
 }
 
 
@@ -119,3 +120,9 @@ def test_services_import_nothing_from_fastapi_even_indirectly():
 
 def test_one_router_per_resource():
     assert {p.stem for p in (PKG / "routers").glob("*.py")} >= {"rooms", "checkouts", "assignments", "inspections", "settings"}
+
+
+def test_healthz_returns_ok(client):
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}

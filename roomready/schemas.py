@@ -132,3 +132,7 @@ class SettingsOut(BaseModel):
     stall_after_minutes: int
 
 
+
+
+class HealthOut(BaseModel):
+    status: Literal["ok"]

@@ -27,7 +27,7 @@ TAGS = [
     {"name": "checkouts", "description": "A guest leaves; the room is dirty"},
     {"name": "assignments", "description": "Assign, start, finish — the clean, timed"},
     {"name": "inspections", "description": "Somebody else passes or fails the room"},
-    {"name": "settings", "description": "Rules in force"},
+    {"name": "settings", "description": "Rules in force, health"},
 ]
 
 
