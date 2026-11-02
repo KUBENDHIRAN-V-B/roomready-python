@@ -51,3 +51,21 @@ class AlreadyAssigned(DomainError):
 
 class SelfInspection(DomainError):
     status, type, title = 409, "/errors/self-inspection", "A housekeeper cannot inspect their own clean"
+
+
+INTERNAL = (500, "/errors/internal", "Something went wrong")
+NOT_FOUND = (404, "/errors/not-found", "No such resource")
+METHOD_NOT_ALLOWED = (405, "/errors/method-not-allowed", "Method not allowed")
+HTTP = "/errors/http"                      # any other framework status; the title is the reason phrase
+
+
+INTERNAL = (500, "/errors/internal", "Something went wrong")
+NOT_FOUND = (404, "/errors/not-found", "No such resource")
+METHOD_NOT_ALLOWED = (405, "/errors/method-not-allowed", "Method not allowed")
+HTTP = "/errors/http"                      # any other framework status; the title is the reason phrase
+
+
+INTERNAL = (500, "/errors/internal", "Something went wrong")
+NOT_FOUND = (404, "/errors/not-found", "No such resource")
+METHOD_NOT_ALLOWED = (405, "/errors/method-not-allowed", "Method not allowed")
+HTTP = "/errors/http"                      # any other framework status; the title is the reason phrase

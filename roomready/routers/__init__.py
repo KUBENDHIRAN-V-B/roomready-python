@@ -1,5 +1,5 @@
-"""Routes parse and delegate; they hold no rules. The request-bound dependencies
-live here, so nothing below `services/` needs the web framework."""
+"""One router per resource."""
+"""One router per resource."""
 from typing import Annotated
 
 from fastapi import Depends

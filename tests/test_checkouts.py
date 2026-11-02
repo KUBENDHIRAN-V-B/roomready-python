@@ -62,3 +62,10 @@ def test_an_arrival_before_the_checkout_is_422_naming_it(client, db):
     assert r.json()["errors"] == [{"field": "arrival_at", "message": "the next arrival cannot be before the checkout"}]
     with db() as s:
         assert s.get(Stay, 29).checked_out_at is None
+
+
+def test_the_201_documents_the_location_header(client):
+    created = client.get("/openapi.json").json()["paths"]["/checkouts"]["post"]["responses"]["201"]
+    assert created["headers"]["Location"]["schema"] == {"type": "string"}
+    assert "/properties/{property}/rooms/{no}" in created["headers"]["Location"]["description"]
+    assert created["content"]["application/json"]["schema"]["$ref"].endswith("/CheckoutOut")
