@@ -1,4 +1,6 @@
-"""RoomReady application: one error handler, request ids on every request."""
+"""RoomReady application: one error handler, request ids on every request and every log line on stdout."""
+import logging
+import sys
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -29,6 +31,17 @@ TAGS = [
     {"name": "inspections", "description": "Somebody else passes or fails the room"},
     {"name": "settings", "description": "Rules in force, health"},
 ]
+
+log = logging.getLogger("roomready")
+
+
+def configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO, stream=sys.stdout,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s", force=True
+    )
+    # One line per request — the app's own request line (with its request id) replaces uvicorn's access line
+    logging.getLogger("uvicorn.access").disabled = True
 
 
 def _can_fail(param: dict) -> bool:
@@ -69,6 +82,7 @@ def honest_openapi(app: FastAPI):
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
+    configure_logging()
     settings = settings or Settings()
     engine = make_engine(settings.database_url)
 
@@ -78,6 +92,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         clock = app.dependency_overrides.get(get_clock, get_clock)()
         with app.state.sessionmaker() as session:
             seed(session, settings.seed_dir, clock)
+        log.info(
+            "ready host=%s port=%s database=%s inspection_required_for=%s stall_after_minutes=%s",
+            settings.host, settings.port, settings.database_url, settings.inspection_required_for,
+            settings.stall_after_minutes
+        )
         yield
         engine.dispose()
 
@@ -92,6 +111,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def request_id_and_log(request: Request, call_next):
         request.state.request_id = uuid.uuid4().hex[:12]
         response = await call_next(request)
+        log.info(
+            "request method=%s path=%s status=%s request_id=%s",
+            request.method, request.url.path, response.status_code, request.state.request_id
+        )
         return response
 
     install_handlers(app)

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     inspection_required_for: str = "Standard,Deluxe,Suite"  # which room types need a second pair of eyes
     stall_after_minutes: int = 60  # GET /settings reports it; no rule here reads it
     seed_dir: str = "seed"
-    host: str = "0.0.0.0"  # bind every interface
+    host: str = "0.0.0.0"  # bind every interface; the ready log line prints it
     port: int = 8080
 
     @field_validator("inspection_required_for")
