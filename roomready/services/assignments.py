@@ -28,7 +28,7 @@ def assign(session: Session, prop: Property, room_no: str, housekeeper_code: str
     room = get_room(session, prop, room_no)
     housekeeper = get_housekeeper(session, prop, housekeeper_code)
     v = view(session, room)
-    if v.assignment is not None:
+    if v.assignment is not None and v.assignment.closed_at is None:
         raise AlreadyAssigned(f"Room {room.no} is already assigned to {v.housekeeper.name}", assigned_to=v.housekeeper.name)
     if v.state != "dirty":
         raise _skipped(v)

@@ -69,6 +69,8 @@ def derive(session: Session, room: Room, stay: Stay | None, assignment: Assignme
         if assignment.finished_at is None:
             return "cleaning", assignment.started_at
         ready = session.scalar(select(Readiness).where(Readiness.stay_id == stay.id)) if stay is not None else None
+        if assignment.closed_at is not None and ready is None:
+            return "dirty", stay.checked_out_at
         return ("ready", ready.ready_at) if ready is not None else ("toinspect", assignment.finished_at)
     return "dirty", stay.checked_out_at
 

@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from ..errors import NoSuchHousekeeper, NoSuchRoom, SelfInspection, StepSkipped
 from ..handlers import VALIDATION_RESPONSE, responses
+from ..ids import inspection_public
 from ..schemas import InspectIn, InspectOut
 from ..services import inspections
 from ..services.rooms import get_property
@@ -29,8 +30,8 @@ def inspect(body: InspectIn, session: SessionDep, clock: ClockDep) -> InspectOut
     row = outcome.inspection
     ready = outcome.readiness
     return InspectOut(
-        inspection_id=str(row.id), room=body.room, cleaned_by=outcome.cleaner.code,
-        inspected_by=outcome.inspector.code, result=row.result, state=outcome.state,
+        inspection_id=inspection_public(row.id), room=body.room, cleaned_by=outcome.cleaner.name,
+        inspected_by=outcome.inspector.name, result=row.result, state=outcome.state,
         ready_at=ready.ready_at if ready else None,
         arrival_at=ready.arrival_at if ready else None,
         margin_minutes=ready.margin_minutes if ready else None,
