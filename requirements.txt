@@ -1,5 +1,1 @@
-fastapi
-uvicorn
-sqlalchemy
-pydantic
-pydantic-settings
+fastapi>=0.115,<1.0\nuvicorn>=0.30\nsqlalchemy>=2.0,<3.0\npydantic-settings>=2.5\npytest>=8.0\nhttpx>=0.27\n

@@ -1,7 +1,3 @@
-"""Append one event row inside the caller's transaction, with who did it. Ids and facts only — never the guest.
-
-Events are written with a plain INSERT and never loaded as objects to change: the code has no update path for them,
-and the database triggers refuse an UPDATE or DELETE from anywhere else."""
 import json
 import logging
 from datetime import datetime

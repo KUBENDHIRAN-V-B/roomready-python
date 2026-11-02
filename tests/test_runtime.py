@@ -1,7 +1,3 @@
-"""Rows checked in-process: the guest never reaches a log line, settings really do come from an
-env-file, data survives a restart, and the image recipe, the env-file example and the README match the contract.
-(The container itself — build, run on a volume, restart, docker logs, docker diff — is verified with docker and
-recorded in the README's "Verified on this build".)"""
 """Runtime contract: stdout logging, env-file configuration, persistent data and image hygiene."""
 import logging
 import re
